@@ -254,34 +254,46 @@ class MP4Converter {
                         const coreJSUrl = URL.createObjectURL(coreJSBlob);
                         const coreWASMUrl = URL.createObjectURL(coreWASMBlob);
                         
-                        // FFmpeg 即使不提供 workerURL，也可能會自動嘗試載入 worker.js
-                        // 為了避免 CORS 問題，我們需要下載 worker.js 到 blob URL 並提供
-                        // 但實際上，@ffmpeg/core 單線程版本應該不需要 worker
-                        // 問題可能在於 @ffmpeg/ffmpeg 類會自動嘗試載入 worker
+                        // 關鍵問題：FFmpeg 類的 load() 方法內部會自動嘗試載入 worker.js
+                        // 即使我們提供 workerURL，它可能仍會從特定路徑嘗試載入
+                        // 解決方案：攔截 Worker 構造，或確保 worker.js 已下載並可使用 blob URL
                         
-                        // 下載 @ffmpeg/ffmpeg 的 worker.js（不是 core 的 worker.js）
-                        // 這是在 @ffmpeg/ffmpeg 包中的 worker
+                        // 嘗試多個可能的 worker.js 路徑
                         let workerJSUrl = null;
-                        try {
-                            // FFmpeg 類會嘗試從這裡載入 worker
-                            const workerUrl = 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm/worker.js';
-                            console.log('下載 FFmpeg worker.js 到 blob URL（避免 CORS）...');
-                            const workerResponse = await fetch(workerUrl);
-                            if (workerResponse.ok) {
-                                const workerBlob = await workerResponse.blob();
-                                workerJSUrl = URL.createObjectURL(workerBlob);
-                                console.log('✓ Worker.js 已準備為 blob URL');
+                        const workerPaths = [
+                            'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm/worker.js',
+                            'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/worker.js',
+                            'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/worker.js'
+                        ];
+                        
+                        for (const workerUrl of workerPaths) {
+                            try {
+                                console.log(`嘗試下載 worker.js: ${workerUrl}`);
+                                const workerResponse = await fetch(workerUrl);
+                                if (workerResponse.ok) {
+                                    const workerText = await workerResponse.text();
+                                    // 創建 blob 並轉換為 blob URL
+                                    const workerBlob = new Blob([workerText], { type: 'text/javascript' });
+                                    workerJSUrl = URL.createObjectURL(workerBlob);
+                                    console.log('✓ Worker.js 已下載並轉換為 blob URL');
+                                    break;
+                                }
+                            } catch (e) {
+                                console.warn(`無法下載 ${workerUrl}:`, e.message);
+                                continue;
                             }
-                        } catch (e) {
-                            console.warn('無法下載 worker.js，嘗試不使用 Worker:', e.message);
+                        }
+                        
+                        if (!workerJSUrl) {
+                            console.warn('警告：無法下載 worker.js，但繼續嘗試載入 FFmpeg');
                         }
                         
                         loadOptions = {
                             coreURL: coreJSUrl,
                             wasmURL: coreWASMUrl,
-                            // 提供 workerURL 使用 blob URL，避免 CORS 問題
-                            // 即使提供 workerURL，如果我們使用單線程 core，實際還是會在主線程運行
-                            ...(workerJSUrl ? { workerURL: workerJSUrl } : {})
+                            // 必須提供 workerURL，即使使用單線程 core
+                            // FFmpeg 類會嘗試載入 worker，我們必須提供 blob URL 版本以避免 CORS
+                            workerURL: workerJSUrl || coreJSUrl, // 如果無法下載 worker，使用 core URL 作為備用
                         };
                     } else {
                         // Worker 模式：跳過（因為會有 CORS 問題）
@@ -289,6 +301,8 @@ class MP4Converter {
                         continue;
                     }
                     
+                    // 確保在載入前，所有需要的檔案都已經是 blob URL
+                    // FFmpeg 可能會在 load() 時自動嘗試載入 worker，所以我們必須提前提供
                     await this.ffmpeg.load(loadOptions);
                     
                     this.ffmpegLoaded = true;
@@ -323,25 +337,36 @@ class MP4Converter {
                     
                     console.log('使用 blob URL 載入 FFmpeg core...');
                     
-                    // FFmpeg 類會自動嘗試載入 worker.js，所以我們需要下載它
+                    // 下載 worker.js（FFmpeg 類會自動嘗試載入它）
                     let workerJSUrl = null;
-                    try {
-                        const workerUrl = 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm/worker.js';
-                        console.log('下載 FFmpeg worker.js 到 blob URL...');
-                        const workerResponse = await fetch(workerUrl);
-                        if (workerResponse.ok) {
-                            const workerBlob = await workerResponse.blob();
-                            workerJSUrl = URL.createObjectURL(workerBlob);
-                            console.log('✓ Worker.js blob URL 已準備');
+                    const workerPaths = [
+                        'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm/worker.js',
+                        'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/worker.js',
+                        'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/worker.js'
+                    ];
+                    
+                    for (const workerUrl of workerPaths) {
+                        try {
+                            console.log(`下載 worker.js: ${workerUrl}`);
+                            const workerResponse = await fetch(workerUrl);
+                            if (workerResponse.ok) {
+                                const workerText = await workerResponse.text();
+                                const workerBlob = new Blob([workerText], { type: 'text/javascript' });
+                                workerJSUrl = URL.createObjectURL(workerBlob);
+                                console.log('✓ Worker.js blob URL 已準備');
+                                break;
+                            }
+                        } catch (e) {
+                            console.warn(`無法下載 ${workerUrl}:`, e.message);
+                            continue;
                         }
-                    } catch (e) {
-                        console.warn('無法下載 worker.js:', e.message);
                     }
                     
                     await this.ffmpeg.load({
                         coreURL: coreJSUrl,
                         wasmURL: coreWASMUrl,
-                        ...(workerJSUrl ? { workerURL: workerJSUrl } : {}),
+                        // 必須提供 workerURL，FFmpeg 類會在 load() 時嘗試載入
+                        workerURL: workerJSUrl || coreJSUrl, // 使用 core URL 作為最後備用
                         log: true
                     });
                     
