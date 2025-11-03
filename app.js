@@ -80,7 +80,11 @@ class MP4Converter {
                     // FFmpeg 會自動在主線程運行，不需要特別設定
                 }
                 
-                this.ffmpeg = new FFmpeg();
+                // 創建 FFmpeg 實例，使用單線程模式（不提供 worker 選項）
+                this.ffmpeg = new FFmpeg({
+                    // 明確禁用 Worker，強制使用主線程模式
+                    // 不設置任何 Worker 相關選項
+                });
                 this.setupFFmpegLogging();
                 console.log('FFmpeg instance created');
             } else {
@@ -250,11 +254,34 @@ class MP4Converter {
                         const coreJSUrl = URL.createObjectURL(coreJSBlob);
                         const coreWASMUrl = URL.createObjectURL(coreWASMBlob);
                         
-                        // 單線程版本：只需要 coreURL 和 wasmURL，不提供 workerURL
+                        // FFmpeg 即使不提供 workerURL，也可能會自動嘗試載入 worker.js
+                        // 為了避免 CORS 問題，我們需要下載 worker.js 到 blob URL 並提供
+                        // 但實際上，@ffmpeg/core 單線程版本應該不需要 worker
+                        // 問題可能在於 @ffmpeg/ffmpeg 類會自動嘗試載入 worker
+                        
+                        // 下載 @ffmpeg/ffmpeg 的 worker.js（不是 core 的 worker.js）
+                        // 這是在 @ffmpeg/ffmpeg 包中的 worker
+                        let workerJSUrl = null;
+                        try {
+                            // FFmpeg 類會嘗試從這裡載入 worker
+                            const workerUrl = 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm/worker.js';
+                            console.log('下載 FFmpeg worker.js 到 blob URL（避免 CORS）...');
+                            const workerResponse = await fetch(workerUrl);
+                            if (workerResponse.ok) {
+                                const workerBlob = await workerResponse.blob();
+                                workerJSUrl = URL.createObjectURL(workerBlob);
+                                console.log('✓ Worker.js 已準備為 blob URL');
+                            }
+                        } catch (e) {
+                            console.warn('無法下載 worker.js，嘗試不使用 Worker:', e.message);
+                        }
+                        
                         loadOptions = {
                             coreURL: coreJSUrl,
                             wasmURL: coreWASMUrl,
-                            // 不提供 workerURL 或 mainURL，FFmpeg 會自動使用主線程模式
+                            // 提供 workerURL 使用 blob URL，避免 CORS 問題
+                            // 即使提供 workerURL，如果我們使用單線程 core，實際還是會在主線程運行
+                            ...(workerJSUrl ? { workerURL: workerJSUrl } : {})
                         };
                     } else {
                         // Worker 模式：跳過（因為會有 CORS 問題）
@@ -294,13 +321,27 @@ class MP4Converter {
                     const coreJSUrl = URL.createObjectURL(coreJSBlob);
                     const coreWASMUrl = URL.createObjectURL(coreWASMBlob);
                     
-                    console.log('使用 blob URL 載入 FFmpeg core（主線程模式）...');
-                    // 使用主線程模式，不使用 Worker，避免 CORS 問題
-                    // 不提供 workerURL 或 mainURL，讓 FFmpeg 使用單線程模式
+                    console.log('使用 blob URL 載入 FFmpeg core...');
+                    
+                    // FFmpeg 類會自動嘗試載入 worker.js，所以我們需要下載它
+                    let workerJSUrl = null;
+                    try {
+                        const workerUrl = 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm/worker.js';
+                        console.log('下載 FFmpeg worker.js 到 blob URL...');
+                        const workerResponse = await fetch(workerUrl);
+                        if (workerResponse.ok) {
+                            const workerBlob = await workerResponse.blob();
+                            workerJSUrl = URL.createObjectURL(workerBlob);
+                            console.log('✓ Worker.js blob URL 已準備');
+                        }
+                    } catch (e) {
+                        console.warn('無法下載 worker.js:', e.message);
+                    }
+                    
                     await this.ffmpeg.load({
                         coreURL: coreJSUrl,
                         wasmURL: coreWASMUrl,
-                        // 不提供 workerURL，強制使用主線程模式
+                        ...(workerJSUrl ? { workerURL: workerJSUrl } : {}),
                         log: true
                     });
                     
