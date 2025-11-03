@@ -55,7 +55,7 @@ git push -u origin main
 
 4. **等待部署完成**
    - 通常 1-2 分鐘內完成
-   - 訪問 `https://你的用戶名.github.io/你的儲存庫名/`
+   - 訪問 `https://你的用戶名.github.io/mp4-to-mp3-splitter/`
 
 **注意**: GitHub Pages 使用 HTTPS，不會有本地測試時的 CORS 問題，所有功能都能正常運作。
 
