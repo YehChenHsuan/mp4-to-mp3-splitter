@@ -235,8 +235,8 @@ class MP4Converter {
                     let loadOptions;
                     
                     if (!config.useWorker) {
-                        // 主線程模式：先下載到 blob，然後用 blob URL
-                        console.log(`下載 ${config.name} 資源到 blob...`);
+                        // 主線程模式：先下載到 blob，然後用 blob URL（完全禁用 Worker）
+                        console.log(`下載 ${config.name} 資源到 blob（主線程模式）...`);
                         const coreJSResponse = await fetch(`${config.baseURL}/ffmpeg-core.js`);
                         const coreWASMResponse = await fetch(`${config.baseURL}/ffmpeg-core.wasm`);
                         
@@ -250,17 +250,16 @@ class MP4Converter {
                         const coreJSUrl = URL.createObjectURL(coreJSBlob);
                         const coreWASMUrl = URL.createObjectURL(coreWASMBlob);
                         
+                        // 單線程版本：只需要 coreURL 和 wasmURL，不提供 workerURL
                         loadOptions = {
                             coreURL: coreJSUrl,
                             wasmURL: coreWASMUrl,
-                            mainURL: coreJSUrl, // 主線程模式
+                            // 不提供 workerURL 或 mainURL，FFmpeg 會自動使用主線程模式
                         };
                     } else {
-                        // Worker 模式：使用 toBlobURL（這在 HTTPS 下應該可以工作，但可能仍有 CORS 問題）
-                        loadOptions = {
-                            coreURL: await toBlobURL(`${config.baseURL}/ffmpeg-core.js`, 'text/javascript'),
-                            wasmURL: await toBlobURL(`${config.baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-                        };
+                        // Worker 模式：跳過（因為會有 CORS 問題）
+                        console.log(`跳過 ${config.name}（Worker 模式在 GitHub Pages 有 CORS 問題）`);
+                        continue;
                     }
                     
                     await this.ffmpeg.load(loadOptions);
@@ -297,10 +296,11 @@ class MP4Converter {
                     
                     console.log('使用 blob URL 載入 FFmpeg core（主線程模式）...');
                     // 使用主線程模式，不使用 Worker，避免 CORS 問題
+                    // 不提供 workerURL 或 mainURL，讓 FFmpeg 使用單線程模式
                     await this.ffmpeg.load({
                         coreURL: coreJSUrl,
                         wasmURL: coreWASMUrl,
-                        mainURL: coreJSUrl, // 明確指定主線程模式
+                        // 不提供 workerURL，強制使用主線程模式
                         log: true
                     });
                     
