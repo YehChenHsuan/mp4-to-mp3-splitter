@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://unpkg.com https://cdn.jsdelivr.net; worker-src 'self' blob:;">
+    <meta name="referrer" content="no-referrer">
     <title>MP4 轉 MP3 並分割工具</title>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -26,7 +28,7 @@
                         <h3>拖放 MP4 檔案到這裡</h3>
                         <p>或點擊選擇檔案</p>
                         <input type="file" id="fileInput" accept="video/mp4,.mp4" hidden>
-                        <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                        <button class="btn btn-primary" id="selectFileBtn">
                             選擇檔案
                         </button>
                     </div>

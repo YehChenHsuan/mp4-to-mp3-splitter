@@ -124,6 +124,14 @@ class MP4Converter {
     }
 
     setupEventListeners() {
+        // 檔案選擇按鈕
+        const selectFileBtn = document.getElementById('selectFileBtn');
+        if (selectFileBtn) {
+            selectFileBtn.addEventListener('click', () => {
+                this.fileInput.click();
+            });
+        }
+
         // 檔案選擇
         this.fileInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
@@ -330,16 +338,31 @@ class MP4Converter {
             return;
         }
         
-        if (!file.type.startsWith('video/') && !file.name.endsWith('.mp4')) {
-            alert('請選擇 MP4 檔案！');
+        // 安全驗證：檔案類型檢查
+        const allowedTypes = ['video/mp4', 'video/x-m4v'];
+        const allowedExtensions = ['.mp4', '.m4v'];
+        const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+        
+        if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
+            alert('請選擇 MP4 格式的影片檔案！');
             return;
         }
+        
+        // 安全驗證：檔案大小檢查（建議不超過 2GB）
+        const maxSize = 2 * 1024 * 1024 * 1024; // 2GB
+        if (file.size > maxSize) {
+            alert('檔案大小超過 2GB，可能會導致瀏覽器記憶體不足。建議使用較小的檔案。');
+            // 不阻止，但給予警告
+        }
+        
+        // 安全驗證：檔案名稱清理（防止 XSS）
+        const sanitizedFileName = file.name.replace(/[<>:"/\\|?*]/g, '_');
 
         this.currentFile = file;
         
         try {
-            // 顯示檔案資訊
-            this.fileName.textContent = file.name;
+            // 顯示檔案資訊（使用清理後的檔名）
+            this.fileName.textContent = sanitizedFileName;
             this.fileSize.textContent = this.formatFileSize(file.size);
             this.audioDuration.textContent = '計算中...';
             this.expectedParts.textContent = '計算中...';
