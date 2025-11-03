@@ -301,9 +301,30 @@ class MP4Converter {
                         continue;
                     }
                     
-                    // 確保在載入前，所有需要的檔案都已經是 blob URL
-                    // FFmpeg 可能會在 load() 時自動嘗試載入 worker，所以我們必須提前提供
-                    await this.ffmpeg.load(loadOptions);
+                    // 關鍵：攔截 Worker 構造，防止 FFmpeg 從 CDN 載入 worker
+                    // 保存原始的 Worker 構造函數
+                    const OriginalWorker = window.Worker;
+                    let workerIntercepted = false;
+                    
+                    // 暫時覆蓋 Worker 構造函數
+                    window.Worker = function(scriptURL, options) {
+                        // 如果 FFmpeg 嘗試從 CDN 載入 worker，使用我們的 blob URL
+                        if (typeof scriptURL === 'string' && scriptURL.includes('unpkg.com') && scriptURL.includes('worker.js')) {
+                            console.log('攔截 Worker 載入，使用 blob URL:', workerJSUrl || coreJSUrl);
+                            return new OriginalWorker(workerJSUrl || coreJSUrl, options);
+                        }
+                        // 否則使用原始 Worker
+                        return new OriginalWorker(scriptURL, options);
+                    };
+                    
+                    try {
+                        // 載入 FFmpeg
+                        await this.ffmpeg.load(loadOptions);
+                        workerIntercepted = true;
+                    } finally {
+                        // 恢復原始 Worker
+                        window.Worker = OriginalWorker;
+                    }
                     
                     this.ffmpegLoaded = true;
                     loaded = true;
@@ -362,13 +383,26 @@ class MP4Converter {
                         }
                     }
                     
-                    await this.ffmpeg.load({
-                        coreURL: coreJSUrl,
-                        wasmURL: coreWASMUrl,
-                        // 必須提供 workerURL，FFmpeg 類會在 load() 時嘗試載入
-                        workerURL: workerJSUrl || coreJSUrl, // 使用 core URL 作為最後備用
-                        log: true
-                    });
+                    // 攔截 Worker 構造以避免 CORS
+                    const OriginalWorker = window.Worker;
+                    window.Worker = function(scriptURL, options) {
+                        if (typeof scriptURL === 'string' && scriptURL.includes('unpkg.com') && scriptURL.includes('worker.js')) {
+                            console.log('攔截 Worker 載入，使用 blob URL');
+                            return new OriginalWorker(workerJSUrl || coreJSUrl, options);
+                        }
+                        return new OriginalWorker(scriptURL, options);
+                    };
+                    
+                    try {
+                        await this.ffmpeg.load({
+                            coreURL: coreJSUrl,
+                            wasmURL: coreWASMUrl,
+                            workerURL: workerJSUrl || coreJSUrl,
+                            log: true
+                        });
+                    } finally {
+                        window.Worker = OriginalWorker;
+                    }
                     
                     // 不要立即清理 blob URL，FFmpeg 可能還需要它們
                     // 在應用程式關閉時才清理
