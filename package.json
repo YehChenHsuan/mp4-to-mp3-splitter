@@ -1,0 +1,29 @@
+{
+  "name": "mp4-to-mp3-splitter",
+  "version": "1.0.0",
+  "description": "MP4 轉 MP3 並自動分割為 30 分鐘音檔的 Web 應用程式",
+  "main": "index.html",
+  "scripts": {
+    "dev": "npx http-server . -p 8080",
+    "build": "echo 'Static site - no build needed'",
+    "test": "echo 'Tests not yet implemented'"
+  },
+  "keywords": [
+    "mp4",
+    "mp3",
+    "audio",
+    "split",
+    "ffmpeg",
+    "web"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.10",
+    "@ffmpeg/util": "^0.12.1"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}
+

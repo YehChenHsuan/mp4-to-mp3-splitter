@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MP4 轉 MP3 並分割工具</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎵 MP4 轉 MP3 並分割工具</h1>
+            <p class="subtitle">將 MP4 影片轉換為 MP3 音訊，並自動分割為 30 分鐘片段</p>
+        </header>
+
+        <main>
+            <!-- 檔案上傳區域 -->
+            <section class="upload-section">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-content">
+                        <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <h3>拖放 MP4 檔案到這裡</h3>
+                        <p>或點擊選擇檔案</p>
+                        <input type="file" id="fileInput" accept="video/mp4,.mp4" hidden>
+                        <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                            選擇檔案
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 檔案資訊 -->
+            <section class="info-section" id="infoSection" style="display: none;">
+                <h3>檔案資訊</h3>
+                <div class="info-card">
+                    <div class="info-item">
+                        <span class="info-label">檔名：</span>
+                        <span class="info-value" id="fileName"></span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">大小：</span>
+                        <span class="info-value" id="fileSize"></span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">音訊長度：</span>
+                        <span class="info-value" id="audioDuration">計算中...</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">預計分割檔數：</span>
+                        <span class="info-value" id="expectedParts">計算中...</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 進度區域 -->
+            <section class="progress-section" id="progressSection" style="display: none;">
+                <h3>處理進度</h3>
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">0%</div>
+                </div>
+                <div class="progress-status" id="progressStatus">準備中...</div>
+            </section>
+
+            <!-- 結果區域 -->
+            <section class="results-section" id="resultsSection" style="display: none;">
+                <div class="results-header">
+                    <h3>處理完成！</h3>
+                    <button class="btn btn-secondary" id="downloadAllBtn">下載全部 (ZIP)</button>
+                </div>
+                <div class="results-list" id="resultsList"></div>
+            </section>
+
+            <!-- 操作按鈕 -->
+            <section class="actions-section" id="actionsSection" style="display: none;">
+                <button class="btn btn-primary btn-large" id="processBtn">開始處理</button>
+                <button class="btn btn-secondary" id="resetBtn" style="display: none;">重新開始</button>
+            </section>
+        </main>
+
+        <footer>
+            <p>💡 所有處理都在您的瀏覽器中完成，檔案不會上傳至伺服器</p>
+            <p>📦 支援部署於 GitHub Pages，無需後端伺服器</p>
+        </footer>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
+
