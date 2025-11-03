@@ -17,21 +17,24 @@
 ### 本機端使用
 
 1. **安裝依賴**
+
 ```bash
 npm install
 ```
 
 2. **啟動開發伺服器**
+
 ```bash
 npm run dev
 ```
 
 3. **開啟瀏覽器**
-訪問 `http://localhost:8080`
+   訪問 `http://localhost:8080`
 
 ### GitHub Pages 部署
 
 1. **準備 Git 儲存庫**
+
 ```bash
 git init
 git add .
@@ -39,6 +42,7 @@ git commit -m "Initial commit"
 ```
 
 2. **推送到 GitHub**
+
 ```bash
 git branch -M main
 git remote add origin https://github.com/你的用戶名/mp4-to-mp3-splitter.git
@@ -46,6 +50,7 @@ git push -u origin main
 ```
 
 3. **啟用 GitHub Pages**
+
    - 前往 GitHub 儲存庫的 **Settings**
    - 選擇左側選單的 **Pages**
    - 設定：
@@ -63,15 +68,18 @@ git push -u origin main
 ## 📖 使用方法
 
 1. **選擇 MP4 檔案**
+
    - 點擊「選擇檔案」按鈕
    - 或直接拖放 MP4 檔案到上傳區域
 
 2. **查看檔案資訊**
+
    - 檔案名稱、大小
    - 音訊長度（自動計算）
    - 預計生成的分割檔數量
 
 3. **開始處理**
+
    - 點擊「開始處理」按鈕
    - 等待轉換和分割完成
    - 查看進度條
@@ -83,24 +91,28 @@ git push -u origin main
 ## 🛠️ 技術架構
 
 ### 核心技術
+
 - **HTML5**: 頁面結構
 - **CSS3**: 現代化樣式設計
 - **JavaScript (ES6+)**: 應用程式邏輯
 - **FFmpeg.wasm**: 音訊處理引擎（WebAssembly）
 
 ### 依賴套件
+
 - `@ffmpeg/ffmpeg`: FFmpeg WebAssembly 版本
 - `@ffmpeg/util`: FFmpeg 工具函式
 
 ## 📋 系統需求
 
 ### 瀏覽器支援
+
 - Chrome/Edge 90+
 - Firefox 88+
 - Safari 14+
 - 需要支援 WebAssembly 和 File API
 
 ### 建議配置
+
 - 現代瀏覽器（最新版本）
 - 足夠的記憶體（處理大型檔案時）
 - 穩定的網路連線（首次載入 FFmpeg.wasm）
@@ -126,11 +138,13 @@ mp4-to-mp3-splitter/
 ### 修改分割時長
 
 在 `app.js` 中找到以下行：
+
 ```javascript
 const segmentLength = 1800; // 30 分鐘 = 1800 秒
 ```
 
 修改為您想要的秒數，例如：
+
 - 15 分鐘: `900`
 - 1 小時: `3600`
 - 45 分鐘: `2700`
@@ -138,12 +152,14 @@ const segmentLength = 1800; // 30 分鐘 = 1800 秒
 ### 修改音訊品質
 
 在 `app.js` 中找到轉換 MP3 的命令：
+
 ```javascript
 '-ab', '192k',  // 音訊位元率
 '-ar', '44100', // 採樣率
 ```
 
 可調整為：
+
 - 128k (較小檔案)
 - 256k (較高品質)
 - 320k (最高品質)
@@ -151,17 +167,20 @@ const segmentLength = 1800; // 30 分鐘 = 1800 秒
 ## 🔒 安全性說明
 
 ### 隱私保護
+
 - ✅ **完全本地處理**: 所有檔案處理都在您的瀏覽器中完成
 - ✅ **無伺服器上傳**: 檔案絕不會上傳至任何伺服器
 - ✅ **無資料收集**: 不會收集或儲存任何使用者資料
 - ✅ **HTTPS 部署**: GitHub Pages 使用 HTTPS 確保傳輸安全
 
 ### 檔案安全
+
 - ✅ **檔案類型驗證**: 僅接受 MP4 格式檔案
 - ✅ **檔案大小限制**: 建議不超過 2GB 以避免記憶體問題
 - ✅ **輸入驗證**: 所有使用者輸入都經過驗證
 
 ### 程式碼安全
+
 - ✅ **無外部 API 呼叫**: 不依賴任何外部服務處理檔案
 - ✅ **CDN 資源驗證**: 僅從受信任的 CDN 載入資源
 - ✅ **XSS 防護**: 所有使用者輸入都經過適當處理
@@ -173,6 +192,7 @@ const segmentLength = 1800; // 30 分鐘 = 1800 秒
 **問題**: 控制台顯示 FFmpeg 載入錯誤
 
 **解決方法**:
+
 - 確保網路連線正常（需要載入 CDN 資源）
 - 重新整理頁面（Ctrl+F5 強制重新載入）
 - 清除瀏覽器快取
@@ -185,16 +205,19 @@ const segmentLength = 1800; // 30 分鐘 = 1800 秒
 **原因**: HTTP → HTTPS 混合內容限制
 
 **解決方法**:
+
 - ✅ **推薦**: 部署到 GitHub Pages（使用 HTTPS，無此問題）
 - 或使用 HTTPS 本地伺服器
 - 應用程式已自動處理，會使用 blob URL 備用方案
 
 ### 處理大型檔案時瀏覽器卡住
+
 - 這是正常現象，請耐心等待
 - 關閉其他分頁以釋放記憶體
 - 建議檔案大小不超過 2GB
 
 ### 下載失敗
+
 - 檢查瀏覽器的下載設定
 - 確保有足夠的磁碟空間
 - 嘗試個別下載而非全部下載
@@ -202,6 +225,7 @@ const segmentLength = 1800; // 30 分鐘 = 1800 秒
 ## 📝 開發計畫
 
 ### 未來功能
+
 - [ ] 支援自訂分割時長（UI 選項）
 - [ ] 支援批次處理多個檔案
 - [ ] 音訊品質選項（位元率選擇器）

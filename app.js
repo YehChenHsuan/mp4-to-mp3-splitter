@@ -230,15 +230,37 @@ class MP4Converter {
                 try {
                     console.log(`嘗試從 ${config.name} 載入 FFmpeg core...`);
                     
-                    const loadOptions = {
-                        coreURL: await toBlobURL(`${config.baseURL}/ffmpeg-core.js`, 'text/javascript'),
-                        wasmURL: await toBlobURL(`${config.baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-                    };
+                    // 使用直接 URL 而非 blob URL，但這可能導致 Worker CORS 問題
+                    // 所以我們優先嘗試不使用 Worker 的模式
+                    let loadOptions;
                     
-                    // 如果不需要 worker，禁用 worker
                     if (!config.useWorker) {
-                        // 使用 main thread 模式
-                        loadOptions.mainURL = await toBlobURL(`${config.baseURL}/ffmpeg-core.js`, 'text/javascript');
+                        // 主線程模式：先下載到 blob，然後用 blob URL
+                        console.log(`下載 ${config.name} 資源到 blob...`);
+                        const coreJSResponse = await fetch(`${config.baseURL}/ffmpeg-core.js`);
+                        const coreWASMResponse = await fetch(`${config.baseURL}/ffmpeg-core.wasm`);
+                        
+                        if (!coreJSResponse.ok || !coreWASMResponse.ok) {
+                            throw new Error('無法下載 FFmpeg core 檔案');
+                        }
+                        
+                        const coreJSBlob = await coreJSResponse.blob();
+                        const coreWASMBlob = await coreWASMResponse.blob();
+                        
+                        const coreJSUrl = URL.createObjectURL(coreJSBlob);
+                        const coreWASMUrl = URL.createObjectURL(coreWASMBlob);
+                        
+                        loadOptions = {
+                            coreURL: coreJSUrl,
+                            wasmURL: coreWASMUrl,
+                            mainURL: coreJSUrl, // 主線程模式
+                        };
+                    } else {
+                        // Worker 模式：使用 toBlobURL（這在 HTTPS 下應該可以工作，但可能仍有 CORS 問題）
+                        loadOptions = {
+                            coreURL: await toBlobURL(`${config.baseURL}/ffmpeg-core.js`, 'text/javascript'),
+                            wasmURL: await toBlobURL(`${config.baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+                        };
                     }
                     
                     await this.ffmpeg.load(loadOptions);
@@ -254,47 +276,42 @@ class MP4Converter {
             }
             
             if (!loaded) {
-                // 最後嘗試：使用本地 blob URL 來避免 CORS 問題（僅適用於 HTTP localhost）
-                const isHTTPLocalhost = window.location.protocol === 'http:' && 
-                                       (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-                
-                if (isHTTPLocalhost) {
-                    try {
-                        console.log('檢測到 HTTP localhost，使用 blob URL 方案避免 CORS 問題...');
-                        
-                        // 先下載檔案到 blob
-                        const coreJSResponse = await fetch('https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js');
-                        const coreWASMResponse = await fetch('https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm');
-                        
-                        if (!coreJSResponse.ok || !coreWASMResponse.ok) {
-                            throw new Error('無法下載 FFmpeg core 檔案');
-                        }
-                        
-                        const coreJSBlob = await coreJSResponse.blob();
-                        const coreWASMBlob = await coreWASMResponse.blob();
-                        
-                        const coreJSUrl = URL.createObjectURL(coreJSBlob);
-                        const coreWASMUrl = URL.createObjectURL(coreWASMBlob);
-                        
-                        console.log('使用 blob URL 載入 FFmpeg core...');
-                        await this.ffmpeg.load({
-                            coreURL: coreJSUrl,
-                            wasmURL: coreWASMUrl,
-                            log: true
-                        });
-                        
-                        // 清理 blob URL
-                        URL.revokeObjectURL(coreJSUrl);
-                        URL.revokeObjectURL(coreWASMUrl);
-                        
-                        this.ffmpegLoaded = true;
-                        loaded = true;
-                        console.log('✓ FFmpeg 已使用本地 blob URL 成功載入（HTTP localhost 環境）');
-                    } catch (error) {
-                        console.error('本地 blob URL 載入也失敗:', error);
+                // 最後嘗試：使用 blob URL 方案避免 Worker CORS 問題（適用於所有環境）
+                try {
+                    console.log('使用 blob URL 方案避免 Worker CORS 問題...');
+                    
+                    // 先下載檔案到 blob
+                    console.log('正在下載 FFmpeg core 檔案...');
+                    const coreJSResponse = await fetch('https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js');
+                    const coreWASMResponse = await fetch('https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm');
+                    
+                    if (!coreJSResponse.ok || !coreWASMResponse.ok) {
+                        throw new Error('無法下載 FFmpeg core 檔案');
                     }
-                } else {
-                    console.warn('非 HTTP localhost 環境，blob URL 方案不適用');
+                    
+                    const coreJSBlob = await coreJSResponse.blob();
+                    const coreWASMBlob = await coreWASMResponse.blob();
+                    
+                    const coreJSUrl = URL.createObjectURL(coreJSBlob);
+                    const coreWASMUrl = URL.createObjectURL(coreWASMBlob);
+                    
+                    console.log('使用 blob URL 載入 FFmpeg core（主線程模式）...');
+                    // 使用主線程模式，不使用 Worker，避免 CORS 問題
+                    await this.ffmpeg.load({
+                        coreURL: coreJSUrl,
+                        wasmURL: coreWASMUrl,
+                        mainURL: coreJSUrl, // 明確指定主線程模式
+                        log: true
+                    });
+                    
+                    // 不要立即清理 blob URL，FFmpeg 可能還需要它們
+                    // 在應用程式關閉時才清理
+                    
+                    this.ffmpegLoaded = true;
+                    loaded = true;
+                    console.log('✓ FFmpeg 已使用 blob URL 成功載入（主線程模式）');
+                } catch (error) {
+                    console.error('blob URL 載入也失敗:', error);
                 }
             }
             
