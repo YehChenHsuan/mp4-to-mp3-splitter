@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - claude/audit-project-issues-011CUq1Pe8eviBpYrDE98gP9
   workflow_dispatch:
 
 permissions:
