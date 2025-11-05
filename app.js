@@ -233,12 +233,12 @@ class MP4Converter {
         }
 
         try {
-            console.log('開始載入 FFmpeg core (使用 toBlobURL)...');
+            console.log('開始載入 FFmpeg core (單線程版本，無需 Worker)...');
 
-            // 使用 toBlobURL 將 CDN 資源轉換為 blob URLs（推薦方法）
-            const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+            // 使用單線程版本的 core 完全避免 Worker CORS 問題
+            const baseURL = 'https://unpkg.com/@ffmpeg/core-st@0.12.6/dist/esm';
 
-            console.log('正在下載 FFmpeg core 檔案...');
+            console.log('正在下載 FFmpeg core 檔案（單線程版本）...');
             const coreURL = await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript');
             const wasmURL = await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm');
 
@@ -246,16 +246,16 @@ class MP4Converter {
             this.blobURLs.push(coreURL, wasmURL);
 
             console.log('✓ FFmpeg core 檔案已轉換為 blob URLs');
-            console.log('正在初始化 FFmpeg...');
+            console.log('正在初始化 FFmpeg（單線程模式）...');
 
-            // 載入 FFmpeg（單線程模式，避免 Worker CORS 問題）
+            // 載入 FFmpeg（單線程版本，不使用 Worker）
             await this.ffmpeg.load({
                 coreURL: coreURL,
                 wasmURL: wasmURL
             });
 
             this.ffmpegLoaded = true;
-            console.log('✓ FFmpeg 已成功載入');
+            console.log('✓ FFmpeg 已成功載入（單線程模式）');
 
         } catch (error) {
             console.error('Failed to load FFmpeg:', error);
