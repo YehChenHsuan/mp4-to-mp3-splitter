@@ -382,3 +382,26 @@ footer p {
     display: none !important;
 }
 
+/* 設定選項 */
+.setting-select {
+    padding: 8px 12px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    background-color: var(--bg-primary);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 200px;
+}
+
+.setting-select:hover {
+    border-color: var(--primary-color);
+}
+
+.setting-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+

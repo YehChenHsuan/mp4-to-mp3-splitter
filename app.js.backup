@@ -117,19 +117,15 @@ class MP4Converter {
         this.fileSize = document.getElementById('fileSize');
         this.audioDuration = document.getElementById('audioDuration');
         this.expectedParts = document.getElementById('expectedParts');
-
+        
         this.progressFill = document.getElementById('progressFill');
         this.progressText = document.getElementById('progressText');
         this.progressStatus = document.getElementById('progressStatus');
-
+        
         this.resultsList = document.getElementById('resultsList');
         this.processBtn = document.getElementById('processBtn');
         this.resetBtn = document.getElementById('resetBtn');
         this.downloadAllBtn = document.getElementById('downloadAllBtn');
-
-        // 設定選項
-        this.segmentLengthSelect = document.getElementById('segmentLength');
-        this.audioBitrateSelect = document.getElementById('audioBitrate');
     }
 
     setupEventListeners() {
@@ -190,25 +186,7 @@ class MP4Converter {
             this.downloadAll();
         });
 
-        // 設定選項變更時更新預計分割檔數
-        this.segmentLengthSelect.addEventListener('change', () => {
-            this.updateExpectedParts();
-        });
-
         // FFmpeg 進度監聽（已在 initFFmpeg 中設定）
-    }
-
-    updateExpectedParts() {
-        // 如果有音訊時長資訊，更新預計分割檔數
-        const durationText = this.audioDuration.textContent;
-        if (durationText && durationText !== '計算中...' && durationText !== '處理時計算') {
-            // 從 HTML5 Video API 取得的時長資訊重新計算
-            if (this.currentFile && this.currentFile._duration) {
-                const segmentLength = parseInt(this.segmentLengthSelect.value);
-                const parts = Math.ceil(this.currentFile._duration / segmentLength);
-                this.expectedParts.textContent = `${parts} 個檔案`;
-            }
-        }
     }
 
     async loadFFmpeg() {
@@ -488,29 +466,11 @@ class MP4Converter {
             return;
         }
         
-        // 安全驗證：檔案大小檢查（建議不超過 2GB，硬限制 4GB）
-        const hardLimit = 4 * 1024 * 1024 * 1024; // 4GB 絕對上限
-        const recommendedLimit = 2 * 1024 * 1024 * 1024; // 2GB 建議上限
-
-        if (file.size > hardLimit) {
-            alert(`檔案大小為 ${this.formatFileSize(file.size)}，超過 4GB 硬限制。\n\n這會導致瀏覽器崩潰。請使用較小的檔案。`);
-            this.fileInput.value = ''; // 清除檔案選擇
-            return;
-        }
-
-        if (file.size > recommendedLimit) {
-            const proceed = confirm(
-                `⚠️ 警告：檔案大小為 ${this.formatFileSize(file.size)}，超過建議的 2GB 上限。\n\n` +
-                `處理大型檔案可能會：\n` +
-                `• 導致瀏覽器變慢或無回應\n` +
-                `• 佔用大量記憶體\n` +
-                `• 處理時間很長\n\n` +
-                `是否仍要繼續？`
-            );
-            if (!proceed) {
-                this.fileInput.value = ''; // 清除檔案選擇
-                return;
-            }
+        // 安全驗證：檔案大小檢查（建議不超過 2GB）
+        const maxSize = 2 * 1024 * 1024 * 1024; // 2GB
+        if (file.size > maxSize) {
+            alert('檔案大小超過 2GB，可能會導致瀏覽器記憶體不足。建議使用較小的檔案。');
+            // 不阻止，但給予警告
         }
         
         // 安全驗證：檔案名稱清理（防止 XSS）
@@ -549,15 +509,10 @@ class MP4Converter {
             video.addEventListener('loadedmetadata', () => {
                 const duration = video.duration;
                 URL.revokeObjectURL(url);
-
+                
                 if (duration && !isNaN(duration) && duration > 0) {
-                    // 儲存音訊時長供後續使用
-                    this.currentFile._duration = duration;
                     this.audioDuration.textContent = this.formatDuration(duration);
-
-                    // 使用使用者選擇的分割時長計算預計檔數
-                    const segmentLength = parseInt(this.segmentLengthSelect.value);
-                    const parts = Math.ceil(duration / segmentLength);
+                    const parts = Math.ceil(duration / 1800); // 每 30 分鐘 = 1800 秒
                     this.expectedParts.textContent = `${parts} 個檔案`;
                 } else {
                     this.audioDuration.textContent = '處理時計算';
@@ -580,8 +535,23 @@ class MP4Converter {
         }
     }
 
-    // 注意：音訊時長已透過 HTML5 Video API 在 handleFileSelect 中計算
-    // 不需要額外的 getAudioDuration 方法
+    async getAudioDuration() {
+        try {
+            // 使用 ffprobe 取得音訊長度（需要額外處理，這裡先用簡單方法）
+            // 實際應用中可能需要更複雜的處理
+            const cmd = [
+                '-i', 'input.mp4',
+                '-f', 'null',
+                '-'
+            ];
+            
+            // 暫時返回 null，實際處理時再計算
+            return null;
+        } catch (error) {
+            console.error('Error getting duration:', error);
+            return null;
+        }
+    }
 
     updateProgress(percent, status) {
         this.progressFill.style.width = `${percent}%`;
@@ -609,20 +579,15 @@ class MP4Converter {
 
             // 步驟 1: 轉換為 MP3 (0-40%)
             this.updateProgress(0, '正在轉換 MP4 為 MP3...');
-
-            // 使用使用者選擇的音訊品質
-            const bitrate = this.audioBitrateSelect.value + 'k';
-
+            
             await this.ffmpeg.exec([
                 '-i', 'input.mp4',
                 '-vn',  // 不包含視訊
                 '-acodec', 'libmp3lame',  // MP3 編碼器
-                '-ab', bitrate,  // 音訊位元率（使用者選擇）
+                '-ab', '192k',  // 音訊位元率
                 '-ar', '44100',  // 採樣率
                 'output.mp3'
             ]);
-
-            console.log(`使用音訊品質: ${bitrate}`);
 
             this.updateProgress(40, 'MP3 轉換完成，正在分割...');
 
@@ -630,18 +595,15 @@ class MP4Converter {
             const mp3Data = await this.ffmpeg.readFile('output.mp3');
             const mp3Blob = new Blob([mp3Data], { type: 'audio/mpeg' });
             const duration = await this.getAudioDurationFromBlob(mp3Blob);
-
-            // 使用使用者選擇的分割時長（bitrate 已在上方宣告）
-            const segmentLength = parseInt(this.segmentLengthSelect.value);
-
+            
             if (!duration || isNaN(duration) || duration <= 0) {
                 // 如果無法取得長度，使用固定分割
                 console.log('無法取得音訊長度，使用固定時間分割');
-                await this.splitMP3ByTime(segmentLength, bitrate);
+                await this.splitMP3ByTime(1800);
             } else {
                 // 步驟 3: 分割 MP3 (40-100%)
-                console.log(`音訊長度: ${duration} 秒，分割時長: ${segmentLength} 秒`);
-                await this.splitMP3(duration, segmentLength, bitrate);
+                console.log(`音訊長度: ${duration} 秒`);
+                await this.splitMP3(duration);
             }
 
             // 顯示結果
@@ -694,16 +656,16 @@ class MP4Converter {
         });
     }
 
-    async splitMP3ByTime(segmentLength, bitrate = '192k') {
+    async splitMP3ByTime(segmentLength) {
         // 使用固定時間分割（如果無法取得實際長度）
         let partNumber = 1;
         let startTime = 0;
         let hasContent = true;
         const maxParts = 100; // 安全限制
-
+        
         while (hasContent && partNumber <= maxParts) {
             const outputFile = `part${partNumber}.mp3`;
-
+            
             try {
                 // 嘗試讀取指定時間段的音訊
                 await this.ffmpeg.exec([
@@ -711,7 +673,7 @@ class MP4Converter {
                     '-ss', this.formatTime(startTime),
                     '-t', this.formatTime(segmentLength),
                     '-acodec', 'libmp3lame',
-                    '-ab', bitrate,
+                    '-ab', '192k',
                     '-ar', '44100',
                     outputFile
                 ]);
@@ -765,7 +727,8 @@ class MP4Converter {
         }
     }
 
-    async splitMP3(totalDuration, segmentLength = 1800, bitrate = '192k') {
+    async splitMP3(totalDuration) {
+        const segmentLength = 1800; // 30 分鐘 = 1800 秒
         const totalParts = Math.ceil(totalDuration / segmentLength);
         let partNumber = 1;
 
@@ -778,7 +741,7 @@ class MP4Converter {
                 '-ss', this.formatTime(startTime),
                 '-t', this.formatTime(duration),
                 '-acodec', 'libmp3lame',
-                '-ab', bitrate,
+                '-ab', '192k',
                 '-ar', '44100',
                 outputFile
             ]);
@@ -845,20 +808,16 @@ class MP4Converter {
     async downloadAll() {
         if (this.outputFiles.length === 0) return;
 
-        // 逐一下載所有檔案（目前不支援 ZIP 打包）
-        // 注意：某些瀏覽器可能會阻止多個下載，請允許彈出視窗
+        // 使用 JSZip 打包所有檔案
+        // 如果沒有 JSZip，就逐一下載
         try {
-            console.log(`開始下載 ${this.outputFiles.length} 個檔案...`);
-            for (let i = 0; i < this.outputFiles.length; i++) {
-                const file = this.outputFiles[i];
-                console.log(`下載檔案 ${i + 1}/${this.outputFiles.length}: ${file.name}`);
-                this.downloadFile(file.blob, file.name);
-                // 延遲以避免瀏覽器阻止多個下載
-                if (i < this.outputFiles.length - 1) {
-                    await new Promise(resolve => setTimeout(resolve, 300));
-                }
+            // 簡單方法：逐一下載
+            for (const file of this.outputFiles) {
+                await new Promise(resolve => {
+                    this.downloadFile(file.blob, file.name);
+                    setTimeout(resolve, 100); // 避免瀏覽器阻止多個下載
+                });
             }
-            alert(`已觸發 ${this.outputFiles.length} 個下載。如果部分檔案未下載，請檢查瀏覽器設定是否允許多個下載。`);
         } catch (error) {
             console.error('Download error:', error);
             alert('下載失敗，請嘗試個別下載');
@@ -866,9 +825,6 @@ class MP4Converter {
     }
 
     reset() {
-        // 清理所有 blob URLs 以防止記憶體洩漏
-        this.cleanupBlobURLs();
-
         this.currentFile = null;
         this.outputFiles = [];
         this.isProcessing = false;
@@ -881,35 +837,6 @@ class MP4Converter {
 
         this.fileInput.value = '';
         this.updateProgress(0, '');
-    }
-
-    cleanupBlobURLs() {
-        // 清理所有追蹤的 blob URLs
-        if (this.blobURLs && this.blobURLs.length > 0) {
-            console.log(`清理 ${this.blobURLs.length} 個 blob URLs`);
-            this.blobURLs.forEach(url => {
-                try {
-                    URL.revokeObjectURL(url);
-                } catch (e) {
-                    console.warn('清理 blob URL 失敗:', e);
-                }
-            });
-            this.blobURLs = [];
-        }
-
-        // 清理輸出檔案的 blob URLs
-        if (this.outputFiles && this.outputFiles.length > 0) {
-            this.outputFiles.forEach(file => {
-                if (file.blob) {
-                    try {
-                        // blob 本身不需要清理，但如果有相關的 URL 需要清理
-                        // 這裡保留供未來擴充
-                    } catch (e) {
-                        console.warn('清理輸出檔案失敗:', e);
-                    }
-                }
-            });
-        }
     }
 }
 
@@ -937,13 +864,6 @@ function initApp() {
         window.converterInstance = converterInstance; // 用於除錯
         console.log('MP4Converter initialized successfully');
         console.log('Converter instance:', converterInstance);
-
-        // 頁面卸載時清理 blob URLs
-        window.addEventListener('beforeunload', () => {
-            if (converterInstance) {
-                converterInstance.cleanupBlobURLs();
-            }
-        });
     } catch (error) {
         console.error('Failed to initialize MP4Converter:', error);
         console.error('Error stack:', error.stack);

@@ -56,6 +56,29 @@
                         <span class="info-value" id="expectedParts">計算中...</span>
                     </div>
                 </div>
+
+                <!-- 設定選項 -->
+                <h3 style="margin-top: 20px;">處理設定</h3>
+                <div class="info-card">
+                    <div class="info-item">
+                        <span class="info-label">分割時長：</span>
+                        <select id="segmentLength" class="setting-select">
+                            <option value="900">15 分鐘</option>
+                            <option value="1800" selected>30 分鐘（預設）</option>
+                            <option value="2700">45 分鐘</option>
+                            <option value="3600">60 分鐘</option>
+                        </select>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">音訊品質：</span>
+                        <select id="audioBitrate" class="setting-select">
+                            <option value="128">128 kbps（較小檔案）</option>
+                            <option value="192" selected>192 kbps（預設）</option>
+                            <option value="256">256 kbps（高品質）</option>
+                            <option value="320">320 kbps（最高品質）</option>
+                        </select>
+                    </div>
+                </div>
             </section>
 
             <!-- 進度區域 -->
@@ -74,7 +97,7 @@
             <section class="results-section" id="resultsSection" style="display: none;">
                 <div class="results-header">
                     <h3>處理完成！</h3>
-                    <button class="btn btn-secondary" id="downloadAllBtn">下載全部 (ZIP)</button>
+                    <button class="btn btn-secondary" id="downloadAllBtn">下載全部</button>
                 </div>
                 <div class="results-list" id="resultsList"></div>
             </section>
